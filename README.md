@@ -8,6 +8,16 @@ and the panel slides in. Press **Esc** and it's gone.
 - **Terminal:** SidePanel's own xterm-compatible emulator, connected to a real PTY (`forkpty`) running your login shell. It supports multiple sessions, scrollback, 256-colour and true-colour, the alternate screen (vim, htop, less), mouse reporting, bracketed paste, IME input, selection and copy/paste, and drag-and-drop of files. It never opens Terminal.app or any other terminal.
 - **Panel:** a background accessory app (no Dock icon). It has a customizable global hotkey and optional screen-edge reveal. You can dock it left, right or top-centre, or leave it wherever you drag it. It can be resized and pinned on top, it animates in and out, and it remembers the last section you used.
 
+## Download
+
+Get **`SidePanel-<version>.dmg`** from the repository's **Releases** page. Open it, drag **SidePanel** into **Applications**, and launch it from there. Then press **⌥Space** to show the panel. It's a single self-contained app (universal: Apple Silicon and Intel) that needs nothing else installed.
+
+**First launch of an un-notarized build.** Until the project is signed with an Apple Developer ID (see below), macOS will warn that it can't verify the developer.
+- **macOS 15 and later:** double-click SidePanel and choose **Done**. Then open **System Settings → Privacy & Security**, scroll down and click **Open Anyway**.
+- **macOS 13–14:** right-click the app, choose **Open**, then **Open** again.
+
+You only need to do this once.
+
 ## Screenshots
 
 These were captured automatically by CI from the real app running on a macOS runner.
@@ -41,22 +51,29 @@ The core is separate from the app so each feature can be developed and tested on
 
 There are no third-party dependencies. The app uses only Apple system frameworks: AppKit, SwiftUI, WebKit, Carbon (for the hotkey) and ServiceManagement (for launch at login).
 
-## Getting the app without a Mac toolchain (cloud build)
+## Cloud builds and releases
 
 Every push runs **GitHub Actions** (`.github/workflows/build.yml`) on an Apple Silicon macOS runner. The workflow:
+1. runs the unit tests on Linux and macOS,
+2. builds a universal app,
+3. launches it in each section and captures screenshots,
+4. packages the DMG, which is attached to the run as an artifact.
 
-1. runs the unit tests (on Linux and macOS),
-2. builds a universal (arm64 + x86_64) `SidePanel.app`,
-3. launches it as a smoke test,
-4. packages `SidePanel-<version>.dmg`.
+To publish a release, push a tag such as `v1.0.1`, or run the workflow manually with **release** ticked. Either way, the DMG and a zipped app are published on the Releases page.
 
-To download the result, open the repository's **Actions** tab, choose the latest **Build** run and download the `SidePanel-dmg` artifact (or `SidePanel-app`). Open the DMG and drag SidePanel to Applications.
+### Making it open with a plain double-click (Developer ID + notarization)
 
-CI builds are **ad-hoc signed**. The first time you open one, macOS Gatekeeper will block it. You can get past this in either of two ways:
-- right-click SidePanel.app, choose **Open**, then **Open** again, or
-- run `xattr -dr com.apple.quarantine /Applications/SidePanel.app`.
+macOS opens apps without any warning only if Apple has issued the signing certificate and checked the app (notarization). Once you have an [Apple Developer Program](https://developer.apple.com/programs/) membership, add these **repository secrets** (Settings → Secrets and variables → Actions). Every build is then signed, notarized and stapled automatically, with no code changes:
 
-If you want the cloud builds to be signed and notarized, see the "Signing and notarization in CI" section below.
+| Secret | What it is |
+|---|---|
+| `MACOS_CERT_P12` | Your *Developer ID Application* certificate exported from Keychain Access as .p12, base64-encoded: `base64 -i cert.p12 \| pbcopy` |
+| `MACOS_CERT_PASSWORD` | The password you chose when exporting the .p12 |
+| `APPLE_ID` | Your Apple Account email |
+| `APPLE_TEAM_ID` | Your 10-character Team ID (developer.apple.com → Membership) |
+| `APPLE_APP_PASSWORD` | An app-specific password from appleid.apple.com → Sign-In and Security |
+
+You can also set a repository *variable* `BUNDLE_ID`, for example `com.yourname.SidePanel`.
 
 ## Building locally
 
@@ -77,38 +94,19 @@ If you prefer to work in Xcode, it can open `Package.swift` directly.
 
 To change the icon, edit and run `python3 scripts/generate_icon.py`, which needs Pillow. It regenerates `Packaging/AppIcon.icns`.
 
-## Signing, notarizing and packaging for distribution
+## Signing and notarizing on your own Mac
 
-An ad-hoc signature is fine for your own Macs. To give the app to other people without Gatekeeper warnings, you need an Apple Developer account ($99/year).
+```sh
+# once: store notarization credentials in your keychain
+xcrun notarytool store-credentials sidepanel-notary \
+    --apple-id you@example.com --team-id TEAMID --password abcd-efgh-ijkl-mnop
 
-1. **Create a Developer ID certificate.** At developer.apple.com, go to Certificates and create a *Developer ID Application* certificate. Install it in your login keychain. To find its exact name, run `security find-identity -v -p codesigning`.
-2. **Sign with the Hardened Runtime.** `build_app.sh` adds `--options runtime --timestamp` automatically when an identity is given:
-   ```sh
-   SIGN_IDENTITY="Developer ID Application: Your Name (TEAMID)" \
-   BUNDLE_ID="com.yourname.SidePanel" \
-   ARCHS="arm64 x86_64" scripts/build_app.sh
-   ```
-3. **Store notarization credentials once.** Use an app-specific password from appleid.apple.com:
-   ```sh
-   xcrun notarytool store-credentials sidepanel-notary \
-       --apple-id you@example.com --team-id TEAMID --password abcd-efgh-ijkl-mnop
-   ```
-4. **Build, sign, notarize and staple the DMG:**
-   ```sh
-   SIGN_IDENTITY="Developer ID Application: Your Name (TEAMID)" \
-   NOTARY_PROFILE=sidepanel-notary scripts/make_dmg.sh
-   ```
-   This creates the DMG (with an Applications shortcut), signs it, submits it to Apple, waits for approval, and staples the ticket. The resulting `dist/SidePanel-<version>.dmg` opens cleanly on any Mac running macOS 13 or later.
+export SIGN_IDENTITY="Developer ID Application: Your Name (TEAMID)"   # see: security find-identity -v -p codesigning
+ARCHS="arm64 x86_64" BUNDLE_ID=com.yourname.SidePanel scripts/build_app.sh   # hardened runtime + timestamp
+NOTARY_PROFILE=sidepanel-notary scripts/make_dmg.sh   # notarizes + staples the app, then the DMG
+```
 
-The app is **not sandboxed**, and this is deliberate. A terminal has to run arbitrary programs, which App Sandbox forbids. That is why the app is distributed through Developer ID and a DMG, not the Mac App Store. The entitlements in `Packaging/SidePanel.entitlements` only grant camera, microphone and location, so that websites can ask for them through WebKit's normal prompts, plus Apple Events for terminal commands such as `osascript`.
-
-### Signing and notarization in CI (optional)
-
-You can add repository secrets and import the certificate into a temporary keychain before the build step. You would need:
-- the certificate as a base64 `.p12` plus its password,
-- your Apple ID, team ID and an app-specific password.
-
-Then run the same two scripts with `SIGN_IDENTITY` and `NOTARY_PROFILE` set. The workflow currently skips this, so it works without any secrets.
+The app is **not sandboxed**, and this is deliberate. A terminal has to run arbitrary programs, which App Sandbox forbids. So SidePanel is distributed with Developer ID and a DMG, not through the Mac App Store. Its entitlements (`Packaging/SidePanel.entitlements`) only cover camera, microphone and location for websites, plus Apple Events for terminal commands.
 
 ## Using SidePanel
 

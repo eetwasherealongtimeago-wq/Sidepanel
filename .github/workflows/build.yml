@@ -2,8 +2,18 @@ name: Build
 
 on:
   push:
+    branches: ["**"]
+    tags: ["v*"]
   pull_request:
   workflow_dispatch:
+    inputs:
+      release:
+        description: "Publish a GitHub Release (tag v<VERSION>) with the DMG"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
 
 jobs:
   # The terminal engine, PTY layer and browser logic are platform-independent and
@@ -31,9 +41,37 @@ jobs:
           uname -m
       - name: Unit tests
         run: swift test --parallel
+      # Developer ID signing is enabled automatically when these repository secrets exist:
+      #   MACOS_CERT_P12 (base64 of the exported .p12), MACOS_CERT_PASSWORD
+      # Without them the app is ad-hoc signed.
+      - name: Import signing certificate
+        env:
+          MACOS_CERT_P12: ${{ secrets.MACOS_CERT_P12 }}
+          MACOS_CERT_PASSWORD: ${{ secrets.MACOS_CERT_PASSWORD }}
+        run: |
+          if [ -z "$MACOS_CERT_P12" ]; then
+            echo "No signing certificate configured — building ad-hoc signed."
+            echo "SIGN_IDENTITY=-" >> "$GITHUB_ENV"
+            exit 0
+          fi
+          KEYCHAIN="$RUNNER_TEMP/signing.keychain-db"
+          KEYCHAIN_PASSWORD="$(uuidgen)"
+          echo "$MACOS_CERT_P12" | base64 --decode > "$RUNNER_TEMP/cert.p12"
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          security import "$RUNNER_TEMP/cert.p12" -P "$MACOS_CERT_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN"
+          security set-key-partition-list -S apple-tool:,apple: -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN" >/dev/null
+          security list-keychains -d user -s "$KEYCHAIN" $(security list-keychains -d user | tr -d '"')
+          rm "$RUNNER_TEMP/cert.p12"
+          IDENTITY="$(security find-identity -v -p codesigning "$KEYCHAIN" | grep 'Developer ID Application' | head -1 | sed -E 's/.*"(.*)"/\1/')"
+          if [ -z "$IDENTITY" ]; then echo "No 'Developer ID Application' identity in the certificate"; exit 1; fi
+          echo "Signing as: $IDENTITY"
+          echo "SIGN_IDENTITY=$IDENTITY" >> "$GITHUB_ENV"
       - name: Build app bundle (universal)
         env:
           ARCHS: "arm64 x86_64"
+          BUNDLE_ID: ${{ vars.BUNDLE_ID || 'app.sidepanel.SidePanel' }}
         run: scripts/build_app.sh
       - name: Smoke test — launch each section and capture screenshots
         run: |
@@ -65,7 +103,13 @@ jobs:
           name: SidePanel-screenshots
           path: dist/screens/*.png
           if-no-files-found: ignore
-      - name: Package DMG
+      # Notarization runs when APPLE_ID, APPLE_TEAM_ID and APPLE_APP_PASSWORD secrets exist
+      # (and the app was Developer ID signed above).
+      - name: Package DMG (notarize when configured)
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
         run: scripts/make_dmg.sh
       - name: Upload DMG
         uses: actions/upload-artifact@v4
@@ -80,3 +124,24 @@ jobs:
         with:
           name: SidePanel-app
           path: dist/SidePanel.app.zip
+      - name: Publish GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v') || inputs.release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VERSION="$(cat VERSION)"
+          TAG="${GITHUB_REF_NAME}"
+          case "$TAG" in v*) ;; *) TAG="v$VERSION" ;; esac
+          if [ "$SIGN_IDENTITY" = "-" ]; then
+            NOTE="This build is not notarized by Apple. On first launch: double-click SidePanel, choose Done, then open System Settings → Privacy & Security and click **Open Anyway** (macOS 15+). On macOS 13–14 you can right-click → Open instead."
+          else
+            NOTE="Signed with Developer ID and notarized by Apple — just open the DMG and drag SidePanel to Applications."
+          fi
+          gh release delete "$TAG" --yes --cleanup-tag 2>/dev/null || true
+          gh release create "$TAG" "dist/SidePanel-$VERSION.dmg" dist/SidePanel.app.zip \
+            --target "$GITHUB_SHA" --title "SidePanel $VERSION" \
+            --notes "**Download \`SidePanel-$VERSION.dmg\`**, open it and drag SidePanel into Applications. Then press ⌥Space to show the panel.
+
+          Requires macOS 13 or later. Universal: Apple Silicon and Intel.
+
+          $NOTE"
