@@ -12,7 +12,7 @@ struct BrowserView: View {
                 selectedID: browser.selected?.id,
                 onSelect: { id in if let t = browser.tabs.first(where: { $0.id == id }) { browser.select(t) } },
                 onClose: { id in if let t = browser.tabs.first(where: { $0.id == id }) { withAnimation(Theme.snappy) { browser.close(t) } } },
-                onNew: { withAnimation(Theme.snappy) { browser.newTab(focusAddress: true) } },
+                onNew: { withAnimation(Theme.snappy) { _ = browser.newTab(focusAddress: true) } },
                 onMove: { browser.moveTab($0, before: $1) }
             )
             .padding(.top, 2)
@@ -28,6 +28,7 @@ struct BrowserView: View {
 }
 
 /// Adapts a tab to the shared tab-pill model.
+@MainActor
 private struct TabRow {
     let tab: BrowserTab
     var model: TabPillModel {
