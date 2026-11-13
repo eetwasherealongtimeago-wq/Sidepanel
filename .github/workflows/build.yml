@@ -105,12 +105,24 @@ jobs:
           if-no-files-found: ignore
       # Notarization runs when APPLE_ID, APPLE_TEAM_ID and APPLE_APP_PASSWORD secrets exist
       # (and the app was Developer ID signed above).
+      - name: Install create-dmg
+        run: brew install create-dmg || echo "create-dmg unavailable; plain DMG will be built"
       - name: Package DMG (notarize when configured)
         env:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
           APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
         run: scripts/make_dmg.sh
+      - name: Screenshot the installer window
+        continue-on-error: true
+        run: |
+          hdiutil attach "dist/SidePanel-$(cat VERSION).dmg" -nobrowse -mountpoint /Volumes/SidePanel >/dev/null
+          open /Volumes/SidePanel; sleep 4
+          screencapture -x dist/screens/dmg.png
+          osascript -e 'tell application "Finder" to close every window' || true
+          hdiutil detach /Volumes/SidePanel >/dev/null || true
+          sips -Z 1100 -s format jpeg -s formatOptions 55 dist/screens/dmg.png --out dist/screens/dmg.jpg >/dev/null
+          echo "BEGIN-SCREENSHOT dmg"; base64 -i dist/screens/dmg.jpg | tr -d '\n'; echo; echo "END-SCREENSHOT"
       - name: Upload DMG
         uses: actions/upload-artifact@v4
         with:

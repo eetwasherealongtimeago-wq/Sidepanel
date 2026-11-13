@@ -32,13 +32,46 @@ if [ "$NOTARIZE" = 1 ]; then
     rm -f dist/SidePanel-notarize.zip
 fi
 
+rm -f "$DMG"
 STAGE="$(mktemp -d)"
 trap 'rm -rf "$STAGE"' EXIT
 cp -R "$APP" "$STAGE/"
-ln -s /Applications "$STAGE/Applications"
 
-rm -f "$DMG"
-hdiutil create -volname "SidePanel" -srcfolder "$STAGE" -fs HFS+ -format UDZO -imagekey zlib-level=9 -ov "$DMG"
+BG="$STAGE/background.tiff"
+if [ -f Packaging/dmg-background@2x.png ]; then
+    # Retina-aware background: both resolutions in one TIFF.
+    tiffutil -cathidpicheck Packaging/dmg-background.png Packaging/dmg-background@2x.png -out "$BG" >/dev/null 2>&1 \
+        || cp Packaging/dmg-background.png "$BG"
+fi
+
+made=0
+if command -v create-dmg >/dev/null 2>&1 && [ -f "$BG" ]; then
+    # Styled installer window: background with instructions, app on the left,
+    # Applications shortcut on the right (positions match generate_dmg_background.py).
+    BGFILE="$(mktemp -d)/background.tiff"; mv "$BG" "$BGFILE"
+    if create-dmg \
+        --volname "SidePanel" \
+        --volicon Packaging/AppIcon.icns \
+        --background "$BGFILE" \
+        --window-pos 200 140 \
+        --window-size 660 440 \
+        --icon-size 112 \
+        --text-size 13 \
+        --icon "SidePanel.app" 170 170 \
+        --hide-extension "SidePanel.app" \
+        --app-drop-link 490 170 \
+        --no-internet-enable \
+        "$DMG" "$STAGE"; then
+        made=1
+    else
+        echo "warning: create-dmg failed; falling back to a plain DMG" >&2
+        rm -f "$DMG"
+    fi
+fi
+if [ "$made" = 0 ]; then
+    ln -s /Applications "$STAGE/Applications"
+    hdiutil create -volname "SidePanel" -srcfolder "$STAGE" -fs HFS+ -format UDZO -imagekey zlib-level=9 -ov "$DMG"
+fi
 
 if [ "$SIGNED" = 1 ]; then
     codesign --force --timestamp --sign "$SIGN_IDENTITY" "$DMG"
