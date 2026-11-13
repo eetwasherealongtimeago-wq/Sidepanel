@@ -91,14 +91,17 @@ final class TerminalView: NSView, NSTextInputClient, NSMenuItemValidation {
     }
 
     private func recomputeGrid() {
+        // Ignore transient zero/tiny sizes during layout; they'd squash the shell to 2×2.
+        guard bounds.width > cellWidth * 10, bounds.height > cellHeight * 3 else { return }
         let usableW = bounds.width - inset.left - inset.right
         let usableH = bounds.height - inset.top - inset.bottom
         let cols = max(2, Int(floor(usableW / cellWidth)))
         let rows = max(2, Int(floor(usableH / cellHeight)))
-        guard cols != gridColumns || rows != gridRows else { return }
         gridColumns = cols
         gridRows = rows
-        onResize?(cols, rows)
+        // Compare with the emulator (not our last value) so the first real layout always propagates.
+        guard cols != emulator.columns || rows != emulator.rows, let onResize else { return }
+        onResize(cols, rows)
         clampScroll()
         needsDisplay = true
     }
