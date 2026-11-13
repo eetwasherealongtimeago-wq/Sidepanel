@@ -1,0 +1,62 @@
+name: Build
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  # The terminal engine, PTY layer and browser logic are platform-independent and
+  # are tested on Linux as well, which keeps them honest about not using AppKit.
+  core-linux:
+    name: Core tests (Linux)
+    runs-on: ubuntu-latest
+    container: swift:5.10-jammy
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build and test SidePanelCore
+        run: swift test --parallel
+
+  macos:
+    name: App (macOS, Apple Silicon)
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Toolchain
+        run: |
+          sw_vers
+          swift --version
+          uname -m
+      - name: Unit tests
+        run: swift test --parallel
+      - name: Build app bundle (universal)
+        env:
+          ARCHS: "arm64 x86_64"
+        run: scripts/build_app.sh
+      - name: Smoke test — launch the app and make sure it stays up
+        run: |
+          ./dist/SidePanel.app/Contents/MacOS/SidePanel &
+          PID=$!
+          sleep 8
+          if ! kill -0 "$PID" 2>/dev/null; then
+            echo "SidePanel exited during launch"; wait "$PID"; exit 1
+          fi
+          kill "$PID"
+          echo "SidePanel launched and stayed running."
+      - name: Package DMG
+        run: scripts/make_dmg.sh
+      - name: Upload DMG
+        uses: actions/upload-artifact@v4
+        with:
+          name: SidePanel-dmg
+          path: dist/*.dmg
+          if-no-files-found: error
+      - name: Zip app
+        run: ditto -c -k --keepParent dist/SidePanel.app dist/SidePanel.app.zip
+      - name: Upload app
+        uses: actions/upload-artifact@v4
+        with:
+          name: SidePanel-app
+          path: dist/SidePanel.app.zip

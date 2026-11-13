@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleName</key>
+    <string>SidePanel</string>
+    <key>CFBundleDisplayName</key>
+    <string>SidePanel</string>
+    <key>CFBundleIdentifier</key>
+    <string>__BUNDLE_ID__</string>
+    <key>CFBundleExecutable</key>
+    <string>SidePanel</string>
+    <key>CFBundlePackageType</key>
+    <string>APPL</string>
+    <key>CFBundleShortVersionString</key>
+    <string>__VERSION__</string>
+    <key>CFBundleVersion</key>
+    <string>__BUILD__</string>
+    <key>CFBundleIconFile</key>
+    <string>AppIcon</string>
+    <key>CFBundleDevelopmentRegion</key>
+    <string>en</string>
+    <key>CFBundleInfoDictionaryVersion</key>
+    <string>6.0</string>
+    <key>LSMinimumSystemVersion</key>
+    <string>13.0</string>
+    <key>LSApplicationCategoryType</key>
+    <string>public.app-category.productivity</string>
+    <!-- Background accessory: no Dock icon, no menu bar of its own. -->
+    <key>LSUIElement</key>
+    <true/>
+    <key>NSHighResolutionCapable</key>
+    <true/>
+    <key>NSSupportsAutomaticGraphicsSwitching</key>
+    <true/>
+    <key>NSHumanReadableCopyright</key>
+    <string>SidePanel</string>
+    <!-- The browser must be able to load plain-http pages. -->
+    <key>NSAppTransportSecurity</key>
+    <dict>
+        <key>NSAllowsArbitraryLoadsInWebContent</key>
+        <true/>
+        <key>NSAllowsLocalNetworking</key>
+        <true/>
+    </dict>
+    <!-- Shown by macOS when a website asks for these, or a shell command touches a protected folder. -->
+    <key>NSCameraUsageDescription</key>
+    <string>A website you opened in SidePanel wants to use the camera.</string>
+    <key>NSMicrophoneUsageDescription</key>
+    <string>A website you opened in SidePanel wants to use the microphone.</string>
+    <key>NSLocationWhenInUseUsageDescription</key>
+    <string>A website you opened in SidePanel wants to know your location.</string>
+    <key>NSDesktopFolderUsageDescription</key>
+    <string>A command running in the SidePanel terminal wants to access your Desktop folder.</string>
+    <key>NSDocumentsFolderUsageDescription</key>
+    <string>A command running in the SidePanel terminal wants to access your Documents folder.</string>
+    <key>NSDownloadsFolderUsageDescription</key>
+    <string>SidePanel saves browser downloads and lets terminal commands use your Downloads folder.</string>
+    <key>NSRemovableVolumesUsageDescription</key>
+    <string>A command running in the SidePanel terminal wants to access a removable volume.</string>
+    <key>NSNetworkVolumesUsageDescription</key>
+    <string>A command running in the SidePanel terminal wants to access a network volume.</string>
+    <key>NSAppleEventsUsageDescription</key>
+    <string>A command running in the SidePanel terminal wants to control another application.</string>
+</dict>
+</plist>
