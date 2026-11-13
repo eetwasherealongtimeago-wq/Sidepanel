@@ -8,6 +8,14 @@ and the panel slides in. Press **Esc** and it's gone.
 - **Terminal:** SidePanel's own xterm-compatible emulator, connected to a real PTY (`forkpty`) running your login shell. It supports multiple sessions, scrollback, 256-colour and true-colour, the alternate screen (vim, htop, less), mouse reporting, bracketed paste, IME input, selection and copy/paste, and drag-and-drop of files. It never opens Terminal.app or any other terminal.
 - **Panel:** a background accessory app (no Dock icon). It has a customizable global hotkey and optional screen-edge reveal. You can dock it left, right or top-centre, or leave it wherever you drag it. It can be resized and pinned on top, it animates in and out, and it remembers the last section you used.
 
+## Screenshots
+
+These were captured automatically by CI from the real app running on a macOS runner.
+
+| Browser | Terminal | Settings |
+|---|---|---|
+| ![Browser](docs/screenshots/browser.jpg) | ![Terminal](docs/screenshots/terminal.jpg) | ![Settings](docs/screenshots/settings.jpg) |
+
 ## Project layout
 
 ```
