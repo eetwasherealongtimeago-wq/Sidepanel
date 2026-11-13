@@ -54,7 +54,7 @@ if command -v create-dmg >/dev/null 2>&1 && [ -f "$BG" ]; then
         --volicon Packaging/AppIcon.icns \
         --background "$BGFILE" \
         --window-pos 200 140 \
-        --window-size 660 440 \
+        --window-size 660 468 \
         --icon-size 112 \
         --text-size 13 \
         --icon "SidePanel.app" 170 170 \

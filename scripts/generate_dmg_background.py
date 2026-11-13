@@ -56,6 +56,10 @@ def render(scale):
         d.rounded_rectangle((i, ay - s(2), i + s(6), ay + s(2)), radius=s(2), fill=(110, 242, 194))
     d.polygon([(ax1, ay), (ax1 - s(16), ay - s(10)), (ax1 - s(16), ay + s(10))], fill=(110, 242, 194))
 
+    # Light chips behind Finder's icon labels (Finder draws them in dark text).
+    for cx in (APP_X, LINK_X):
+        d.rounded_rectangle((s(cx - 58), s(ICON_Y + 62), s(cx + 58), s(ICON_Y + 84)), radius=s(11), fill=(226, 230, 238))
+
     # First-launch steps card.
     card = (s(36), s(276), w - s(36), h - s(24))
     d.rounded_rectangle(card, radius=s(14), fill=(10, 11, 15, 255), outline=(44, 48, 60), width=max(1, s(1)))
