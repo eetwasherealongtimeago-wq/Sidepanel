@@ -12,7 +12,9 @@ and the panel slides in. Press **Esc** and it's gone.
 
 Get **`SidePanel-<version>.dmg`** from the repository's **Releases** page. Open it, drag **SidePanel** into **Applications**, and launch it from there. Then press **⌥Space** to show the panel. It's a single self-contained app (universal: Apple Silicon and Intel) that needs nothing else installed.
 
-The installer window shows these steps too.
+The installer window shows these steps too:
+
+![Installer](docs/screenshots/installer.jpg)
 
 **First launch of an un-notarized build.** Until the project is signed with an Apple Developer ID (see below), macOS will warn that it can't verify the developer.
 - **macOS 15 and later:** double-click SidePanel and choose **Done**. Then open **System Settings → Privacy & Security**, scroll down and click **Open Anyway**.
