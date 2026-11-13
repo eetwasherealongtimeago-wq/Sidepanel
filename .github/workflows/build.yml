@@ -35,16 +35,36 @@ jobs:
         env:
           ARCHS: "arm64 x86_64"
         run: scripts/build_app.sh
-      - name: Smoke test — launch the app and make sure it stays up
+      - name: Smoke test — launch each section and capture screenshots
         run: |
-          ./dist/SidePanel.app/Contents/MacOS/SidePanel &
-          PID=$!
-          sleep 8
-          if ! kill -0 "$PID" 2>/dev/null; then
-            echo "SidePanel exited during launch"; wait "$PID"; exit 1
-          fi
-          kill "$PID"
-          echo "SidePanel launched and stayed running."
+          mkdir -p dist/screens
+          for mode in browser terminal settings; do
+            SIDEPANEL_DEMO=$mode ./dist/SidePanel.app/Contents/MacOS/SidePanel &
+            PID=$!
+            sleep 9
+            if ! kill -0 "$PID" 2>/dev/null; then
+              echo "SidePanel exited during launch ($mode)"; wait "$PID"; exit 1
+            fi
+            screencapture -x "dist/screens/$mode.png" || echo "screencapture unavailable"
+            kill "$PID"; wait "$PID" 2>/dev/null || true
+            echo "SidePanel launched and stayed running ($mode)."
+          done
+          # Small JPEGs, printed so they can be inspected from the log alone.
+          for f in dist/screens/*.png; do
+            [ -f "$f" ] || continue
+            sips -Z 1100 -s format jpeg -s formatOptions 55 "$f" --out "${f%.png}.jpg" >/dev/null
+            echo "::group::screenshot $(basename "$f")"
+            echo "BEGIN-SCREENSHOT $(basename "${f%.png}")"
+            base64 -i "${f%.png}.jpg" | tr -d '\n'; echo
+            echo "END-SCREENSHOT"
+            echo "::endgroup::"
+          done
+      - name: Upload screenshots
+        uses: actions/upload-artifact@v4
+        with:
+          name: SidePanel-screenshots
+          path: dist/screens/*.png
+          if-no-files-found: ignore
       - name: Package DMG
         run: scripts/make_dmg.sh
       - name: Upload DMG

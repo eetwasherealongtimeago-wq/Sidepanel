@@ -35,16 +35,16 @@ let package = Package(
 // Declared only on macOS so the core can be built and tested on Linux CI too.
 package.products.append(.executable(name: "SidePanel", targets: ["SidePanel"]))
 package.targets.append(
-        .executableTarget(
-            name: "SidePanel",
-            dependencies: ["SidePanelCore"],
-            path: "Sources/SidePanel",
-            linkerSettings: [
-                .linkedFramework("AppKit"),
-                .linkedFramework("WebKit"),
-                .linkedFramework("Carbon"),
-                .linkedFramework("ServiceManagement"),
-            ]
-        )
+    .executableTarget(
+        name: "SidePanel",
+        dependencies: ["SidePanelCore"],
+        path: "Sources/SidePanel",
+        linkerSettings: [
+            .linkedFramework("AppKit"),
+            .linkedFramework("WebKit"),
+            .linkedFramework("Carbon"),
+            .linkedFramework("ServiceManagement"),
+        ]
+    )
 )
 #endif

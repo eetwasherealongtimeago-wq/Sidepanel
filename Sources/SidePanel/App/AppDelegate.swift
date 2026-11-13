@@ -31,11 +31,45 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             DispatchQueue.main.async { self?.updateStatusItem() }
         }.store(in: &cancellables)
 
+        if let demo = ProcessInfo.processInfo.environment["SIDEPANEL_DEMO"] {
+            runDemo(demo)
+            return
+        }
+
         // First launch: show the panel once so people know it exists.
         if !UserDefaults.standard.bool(forKey: "app.hasLaunched") {
             UserDefaults.standard.set(true, forKey: "app.hasLaunched")
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { [weak self] in
                 self?.controller.show()
+            }
+        }
+    }
+
+    /// Used by CI to put the real app into a known state for screenshots:
+    /// SIDEPANEL_DEMO=browser|terminal|settings
+    private func runDemo(_ mode: String) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
+            guard let self else { return }
+            self.controller.show()
+            switch mode {
+            case "terminal":
+                self.state.section = .terminal
+                DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) { [weak self] in
+                    let script = "clear; echo; printf '\\033[1;32m  SidePanel terminal\\033[0m  —  '; uname -sm; "
+                        + "for i in 1 2 3 4 5 6; do printf \"\\033[3${i}m██\\033[0m \"; done; echo; "
+                        + "printf '\\033[38;2;110;242;194mtrue colour\\033[0m  \\033[1mbold\\033[0m  \\033[4munderline\\033[0m  漢字 ✓\\n'; "
+                        + "ls -la /Applications | head -8; echo $TERM $COLORTERM\n"
+                    self?.state.terminals.selected?.view.send?(Array(script.utf8))
+                }
+            case "settings":
+                self.state.showSettings = true
+            default:
+                self.state.section = .browser
+                if let url = URL(string: ProcessInfo.processInfo.environment["SIDEPANEL_DEMO_URL"] ?? "https://example.com") {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
+                        self?.state.browser.open(url)
+                    }
+                }
             }
         }
     }
